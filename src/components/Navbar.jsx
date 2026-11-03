@@ -86,7 +86,7 @@ export default function Navbar({ activeTab: propsActiveTab, setActiveTab: propsS
           {/* Phone Call Button */}
           <div className="hidden lg:block lg:-mr-4">
             <a
-              href="tel:+911234567890"
+              href="tel:+919514476555"
               className="flex items-center gap-3.5 bg-brand-yellow hover:bg-[#E5B002] active:scale-95 text-brand-dark px-6 py-2.5 rounded-xl font-bold tracking-wide shadow-md hover:shadow-lg transition-all duration-300"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5 text-brand-dark" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
@@ -143,7 +143,7 @@ export default function Navbar({ activeTab: propsActiveTab, setActiveTab: propsS
           ))}
           <div className="pt-4 border-t border-stone-100">
             <a
-              href="tel:+911234567890"
+              href="tel:+919514476555"
               className="flex items-center justify-center gap-2.5 bg-brand-yellow text-brand-dark px-6 py-4 rounded-xl font-bold tracking-wide shadow-md"
             >
               <svg viewBox="0 0 24 24" className="w-5 h-5 text-brand-dark" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
