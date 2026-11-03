@@ -66,6 +66,48 @@ body {
   border-radius: 1rem;
 }
 
+/* YouTube videos added with the CMS "Video" button */
+.prose-brand .video-embed {
+  margin: 2em 0;
+  aspect-ratio: 16 / 9;
+}
+.prose-brand .video-embed iframe {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 1rem;
+  background: #000;
+}
+
+/* PDFs added with the CMS "PDF" button render as download buttons */
+.prose-brand a[href$=".pdf"] {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6em;
+  padding: 0.65em 1.1em;
+  border: 1px solid #e7e5e4;
+  border-radius: 0.75rem;
+  background: var(--color-brand-cream);
+  color: var(--color-brand-dark);
+  font-weight: 600;
+  text-decoration: none;
+  transition: border-color 0.2s;
+}
+.prose-brand a[href$=".pdf"]:hover {
+  border-color: var(--color-brand-gold);
+}
+.prose-brand a[href$=".pdf"]::before {
+  content: "PDF";
+  padding: 0.15em 0.45em;
+  border-radius: 0.3em;
+  background: #b91c1c;
+  color: #fff;
+  font-size: 0.7em;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
 /* Custom Utilities */
 .text-serif {
   font-family: var(--font-serif);

@@ -12,7 +12,7 @@ import sanitizeHtml from 'sanitize-html';
 const ROOT = join(import.meta.dirname, '..');
 const API = (process.env.CMS_API_URL || '').replace(/\/$/, '');
 const MEDIA_DIR = join(ROOT, 'public', 'blog-media');
-const EXT = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif' };
+const EXT = { 'image/webp': 'webp', 'image/jpeg': 'jpg', 'image/png': 'png', 'image/gif': 'gif', 'application/pdf': 'pdf' };
 const WORDS_PER_MINUTE = 200;
 
 // Mirrors the CMS defaults (worker/migrations/0002_defaults.sql) for builds without the CMS.
@@ -39,16 +39,37 @@ const FALLBACK = {
   media: [],
 };
 
+/**
+ * Rebuilds a YouTube player (from the CMS editor's Video button) with fixed, safe
+ * attributes. Returns null for anything that isn't a YouTube embed.
+ */
+function youtubeEmbedSrc(src) {
+  let url;
+  try {
+    url = new URL(src);
+  } catch {
+    return null;
+  }
+  if (!['www.youtube.com', 'youtube.com', 'www.youtube-nocookie.com'].includes(url.hostname)) return null;
+  const id = url.pathname.match(/^\/embed\/([A-Za-z0-9_-]{11})$/)?.[1];
+  if (!id) return null;
+  const start = Number.parseInt(url.searchParams.get('start'), 10);
+  return `https://www.youtube-nocookie.com/embed/${id}?rel=0${start > 0 ? `&start=${start}` : ''}`;
+}
+
 const SANITIZE = {
-  allowedTags: ['p', 'br', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'u', 's', 'a', 'ul', 'ol', 'li', 'blockquote', 'img', 'hr', 'code', 'pre', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr', 'th', 'td'],
+  allowedTags: ['p', 'br', 'h2', 'h3', 'h4', 'strong', 'b', 'em', 'i', 'u', 's', 'a', 'ul', 'ol', 'li', 'blockquote', 'img', 'hr', 'code', 'pre', 'figure', 'figcaption', 'table', 'thead', 'tbody', 'tr', 'th', 'td', 'div', 'iframe'],
   allowedAttributes: {
     a: ['href', 'target', 'rel', 'title'],
     img: ['src', 'alt', 'width', 'height', 'title', 'loading', 'decoding'],
+    iframe: ['src', 'title', 'width', 'height', 'allow', 'allowfullscreen', 'loading', 'referrerpolicy'],
     th: ['colspan', 'rowspan'],
     td: ['colspan', 'rowspan'],
   },
+  allowedClasses: { div: ['video-embed'] },
   allowedSchemes: ['http', 'https', 'mailto', 'tel'],
-  allowedSchemesByTag: { img: ['http', 'https'] },
+  allowedSchemesByTag: { img: ['http', 'https'], iframe: ['https'] },
+  allowedIframeHostnames: ['www.youtube-nocookie.com'],
   allowProtocolRelative: false,
   transformTags: {
     h1: 'h2',
@@ -59,8 +80,35 @@ const SANITIZE = {
       return { tagName, attribs: a };
     },
     img: (tagName, attribs) => ({ tagName, attribs: { ...attribs, loading: 'lazy', decoding: 'async' } }),
+    div: (tagName, attribs) => ({ tagName, attribs: 'data-youtube-video' in attribs ? { class: 'video-embed' } : {} }),
+    iframe: (tagName, attribs) => {
+      const src = youtubeEmbedSrc(attribs.src);
+      if (!src) return { tagName, attribs: {} }; // removed by exclusiveFilter
+      return {
+        tagName,
+        attribs: {
+          src,
+          title: 'YouTube video',
+          width: '640',
+          height: '360',
+          loading: 'lazy',
+          allow: 'accelerometer; encrypted-media; gyroscope; picture-in-picture; web-share',
+          allowfullscreen: 'true',
+          referrerpolicy: 'strict-origin-when-cross-origin',
+        },
+      };
+    },
   },
+  exclusiveFilter: (frame) => frame.tag === 'iframe' && !frame.attribs.src,
 };
+
+const fileSlug = (name) =>
+  name
+    .replace(/\.[a-z0-9]+$/i, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60);
 
 async function getJson(url) {
   const res = await fetch(url);
@@ -75,10 +123,10 @@ async function main() {
     raw = FALLBACK;
   } else {
     raw = await getJson(`${API}/api/public/content`);
-    console.log(`Fetched ${raw.posts.length} published posts, ${raw.media.length} images from ${API}`);
+    console.log(`Fetched ${raw.posts.length} published posts, ${raw.media.length} images/documents from ${API}`);
   }
 
-  // Download images referenced by published content.
+  // Download images and PDFs referenced by published content.
   rmSync(MEDIA_DIR, { recursive: true, force: true });
   mkdirSync(MEDIA_DIR, { recursive: true });
   const media = {};
@@ -86,27 +134,32 @@ async function main() {
     const ext = EXT[m.mime];
     if (!ext) continue;
     const res = await fetch(`${API}/api/public/media/${m.id}`);
-    if (!res.ok) throw new Error(`Image ${m.id} returned ${res.status}`);
-    writeFileSync(join(MEDIA_DIR, `${m.id}.${ext}`), Buffer.from(await res.arrayBuffer()));
-    media[m.id] = { src: `/blog-media/${m.id}.${ext}`, width: m.width, height: m.height, alt: m.alt || '' };
+    if (!res.ok) throw new Error(`File ${m.id} returned ${res.status}`);
+    // PDFs keep a readable name, e.g. doc_ab12-sample-sale-deed.pdf
+    const slug = ext === 'pdf' && m.filename ? fileSlug(m.filename) : '';
+    const file = `${m.id}${slug ? `-${slug}` : ''}.${ext}`;
+    writeFileSync(join(MEDIA_DIR, file), Buffer.from(await res.arrayBuffer()));
+    media[m.id] = { src: `/blog-media/${file}`, width: m.width, height: m.height, alt: m.alt || '', isImage: m.mime.startsWith('image/') };
   }
+  const imageMedia = (id) => (id && media[id]?.isImage ? media[id] : null);
 
   const categories = raw.categories;
   const categoryName = Object.fromEntries(categories.map((c) => [c.slug, c.name]));
   const posts = raw.posts.map((p) => {
-    const html = sanitizeHtml(p.contentHtml, SANITIZE).replace(
-      /\bsrc="[^"]*\/api\/public\/media\/([A-Za-z0-9_-]+)[^"]*"/g,
-      (match, id) => (media[id] ? `src="${media[id].src}"` : match)
-    );
+    // Point images (src) and PDF links (href) at the copies inside this site.
+    const html = sanitizeHtml(p.contentHtml, SANITIZE)
+      .replace(/\b(src|href)="[^"]*\/api\/public\/media\/([A-Za-z0-9_-]+)[^"]*"/g, (match, attr, id) => (media[id] ? `${attr}="${media[id].src}"` : match))
+      .replace(/<div class="video-embed">\s*<\/div>/g, ''); // a rejected (non-YouTube) embed leaves an empty box
     const words = sanitizeHtml(html, { allowedTags: [], allowedAttributes: {} }).split(/\s+/).filter(Boolean).length;
-    const cover = p.coverMediaId && media[p.coverMediaId] ? { ...media[p.coverMediaId], alt: p.coverAlt || media[p.coverMediaId].alt } : null;
+    const coverMedia = imageMedia(p.coverMediaId);
+    const cover = coverMedia ? { src: coverMedia.src, width: coverMedia.width, height: coverMedia.height, alt: p.coverAlt || coverMedia.alt } : null;
     return {
       slug: p.slug,
       title: p.title,
       excerpt: p.excerpt,
       contentHtml: html,
       cover,
-      ogImage: p.ogMediaId && media[p.ogMediaId] ? media[p.ogMediaId].src : null,
+      ogImage: imageMedia(p.ogMediaId)?.src ?? null,
       categorySlug: p.categorySlug || null,
       categoryName: p.categorySlug ? categoryName[p.categorySlug] : null,
       tags: p.tags || [],
@@ -122,16 +175,16 @@ async function main() {
   });
 
   const pages = Object.fromEntries(
-    Object.entries(raw.pages).map(([key, p]) => [key, { ...p, ogImage: p.ogMediaId && media[p.ogMediaId] ? media[p.ogMediaId].src : null }])
+    Object.entries(raw.pages).map(([key, p]) => [key, { ...p, ogImage: imageMedia(p.ogMediaId)?.src ?? null }])
   );
-  const defaultOgId = raw.settings.seo_defaults?.defaultOgMediaId;
+  const defaultOgImage = imageMedia(raw.settings.seo_defaults?.defaultOgMediaId)?.src ?? null;
 
   mkdirSync(join(ROOT, '.cms'), { recursive: true });
   writeFileSync(
     join(ROOT, '.cms', 'content.json'),
-    JSON.stringify({ generatedAt: new Date().toISOString(), settings: raw.settings, pages, categories, posts, defaultOgImage: defaultOgId && media[defaultOgId] ? media[defaultOgId].src : null }, null, 2)
+    JSON.stringify({ generatedAt: new Date().toISOString(), settings: raw.settings, pages, categories, posts, defaultOgImage }, null, 2)
   );
-  console.log(`Wrote .cms/content.json (${posts.length} posts) and ${Object.keys(media).length} images to public/blog-media/`);
+  console.log(`Wrote .cms/content.json (${posts.length} posts) and ${Object.keys(media).length} files to public/blog-media/`);
 }
 
 main().catch((err) => {
