@@ -24,3 +24,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build-time CMS content and server bundle
+.cms
+public/blog-media
+dist-ssr

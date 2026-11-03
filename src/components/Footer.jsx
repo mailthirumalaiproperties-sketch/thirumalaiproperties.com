@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import logoSymbol from '../assets/logo1.png';
 import footerImg from '../assets/footer.png';
+import { pathForTab } from '../routes';
 
 export default function Footer({ setActiveTab }) {
   const [isVisible, setIsVisible] = useState(false);
@@ -183,10 +184,10 @@ export default function Footer({ setActiveTab }) {
                 Quick Links
               </h4>
               <ul className="space-y-3.5 text-sm font-semibold">
-                {['Home', 'Properties', 'Documents', 'NRI Property', 'About Us', 'Contact'].map((link) => (
+                {['Home', 'Properties', 'Documents', 'NRI Property', 'Blog', 'About Us', 'Contact'].map((link) => (
                   <li key={link}>
                     <a
-                      href={`#${link.toLowerCase().replace(' ', '-')}`}
+                      href={pathForTab(link)}
                       onClick={(e) => handleLinkClick(e, link)}
                       className="hover:text-white transition-all duration-300"
                     >
@@ -210,7 +211,7 @@ export default function Footer({ setActiveTab }) {
                 ].map((item, i) => (
                   <li key={i}>
                     <a
-                      href="#"
+                      href={pathForTab(item.tab)}
                       onClick={(e) => handleServiceClick(e, item.tab, item.targetId)}
                       className="hover:text-white transition-all duration-300"
                     >

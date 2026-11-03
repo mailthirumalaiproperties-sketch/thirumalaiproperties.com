@@ -15,12 +15,13 @@ export default function Navbar({ activeTab: propsActiveTab, setActiveTab: propsS
   };
 
   const navItems = [
-    { name: 'Home', href: '#home', hasDropdown: false },
-    { name: 'Properties', href: '#Properties', hasDropdown: false },
-    { name: 'Documents', href: '#Documents', hasDropdown: false },
-    { name: 'NRI Property', href: '#NRI-Property', hasDropdown: false },
-    { name: 'About Us', href: '#about-us', hasDropdown: false },
-    { name: 'Contact', href: '#contact', hasDropdown: false },
+    { name: 'Home', href: '/', hasDropdown: false },
+    { name: 'Properties', href: '/properties/', hasDropdown: false },
+    { name: 'Documents', href: '/documents/', hasDropdown: false },
+    { name: 'NRI Property', href: '/nri-property/', hasDropdown: false },
+    { name: 'Blog', href: '/blog/', hasDropdown: false },
+    { name: 'About Us', href: '/about-us/', hasDropdown: false },
+    { name: 'Contact', href: '/contact/', hasDropdown: false },
   ];
 
   return (
@@ -29,7 +30,7 @@ export default function Navbar({ activeTab: propsActiveTab, setActiveTab: propsS
         <div className="flex justify-between items-center h-20 md:h-24">
 
           {/* Logo */}
-          <a href="#home" className="flex flex-col items-center justify-center group py-1">
+          <a href="/" onClick={(e) => handleNavClick(e, 'Home')} className="flex flex-col items-center justify-center group py-1">
             <img
               src={logoSymbol}
               alt="Thirumalai Properties Icon"

@@ -1,0 +1,56 @@
+name: Build and deploy website
+
+# Runs on code pushes, when the blog admin publishes something (the CMS API
+# calls workflow_dispatch), and once a day as a safety net.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "30 21 * * *" # 03:00 IST
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a newer pending run replaces an older pending one.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # `npm run build` first runs scripts/fetch-cms.mjs (prebuild), which pulls
+      # published articles, page SEO and images from the CMS API, then pre-renders every page.
+      - name: Build
+        run: npm run build
+        env:
+          CMS_API_URL: ${{ vars.CMS_API_URL }}
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @theme {
   --font-serif: "Playfair Display", Georgia, serif;
@@ -44,6 +45,25 @@ html {
 body {
   font-family: var(--font-sans);
   color: var(--color-brand-dark);
+}
+
+/* Blog article typography (content comes from the CMS) */
+.prose-brand {
+  --tw-prose-body: #44403c;
+  --tw-prose-headings: var(--color-brand-dark);
+  --tw-prose-links: #9F7202;
+  --tw-prose-bold: var(--color-brand-dark);
+  --tw-prose-bullets: var(--color-brand-gold);
+  --tw-prose-counters: var(--color-brand-gold);
+  --tw-prose-quote-borders: var(--color-brand-yellow);
+}
+
+.prose-brand :where(h2, h3, h4) {
+  font-family: var(--font-serif);
+}
+
+.prose-brand :where(img) {
+  border-radius: 1rem;
 }
 
 /* Custom Utilities */
